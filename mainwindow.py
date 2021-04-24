@@ -316,7 +316,7 @@ class MainWindow(wx.Frame):
         wx.CallLater(100, self.next_step)
 
     def make_toolbar(self):
-        toolbar = self.CreateToolBar(wx.TB_HORIZONTAL, wx.ID_ANY)
+        toolbar = self.CreateToolBar(wx.TB_HORIZONTAL|wx.TB_TEXT, wx.ID_ANY)
         tool_spec = (
             # bitmap filename, button type, label, callback, tooltip
             # ('Radio-Shack-SPL-small.png', 'normal', 'dB Ref',
