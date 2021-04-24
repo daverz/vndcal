@@ -294,8 +294,8 @@ class MainWindow(wx.Frame):
         self.use_c_weighting = self.config.ReadBool('use_c_weighting', False)
         self.weighting = 0
         self.set_weighting()
-        self.toolbar.ToggleTool(self.toolmap['C Weighting'].Id,
-                                self.use_c_weighting)
+        # self.toolbar.ToggleTool(self.toolmap['C Weighting'].Id,
+        #                         self.use_c_weighting)
         # points = np.zeros((len(CENTER_FREQUENCIES), 2))
         # points[:, 0] = CENTER_FREQUENCIES
         # points[:, 1] = 70
@@ -319,28 +319,28 @@ class MainWindow(wx.Frame):
         toolbar = self.CreateToolBar(wx.TB_HORIZONTAL, wx.ID_ANY)
         tool_spec = (
             # bitmap filename, button type, label, callback, tooltip
-            ('Radio-Shack-SPL-small.png', 'normal', 'dB Ref',
-             self.set_db_reference,
-             'Click here when your SPL meter reads '
-             '70 dB for a 1kHz test tone.'),
-            ('add-a-bar-chart-icone-8472-48.png', 'dropdown', 'Level Memory',
-             self.level_memory_add,
-             'Add the current levels to memory.  Right click to recall.'),
-            ('target.png', 'check', 'Target Mode', self.set_target_mode,
-             'Show the difference between the current level '
-             'and the target level.'),
-            ('pause-player-icone-5157-48.png', 'check', 'Hold Levels',
+            # ('Radio-Shack-SPL-small.png', 'normal', 'dB Ref',
+            #  self.set_db_reference,
+            #  'Click here when your SPL meter reads '
+            #  '70 dB for a 1kHz test tone.'),
+            # ('add-a-bar-chart-icone-8472-48.png', 'dropdown', 'Level Memory',
+            #  self.level_memory_add,
+            #  'Add the current levels to memory.  Right click to recall.'),
+            # ('target.png', 'check', 'Target Mode', self.set_target_mode,
+            #  'Show the difference between the current level '
+            #  'and the target level.'),
+            ('icons/pause-player-icone-5157-48.png', 'check', 'Hold Levels',
              self.set_hold, 'Hold all levels.'),
-            ('instagram_icon_48.png', 'normal', 'Save snapshot',
+            ('icons/instagram_icon_48.png', 'normal', 'Save snapshot',
              self.save_snapshot,
              'Save an image of the plot to a file.'),
-            ('5210.png', 'check', 'C Weighting', self.set_c_weighting,
-             'Use C weighting. For use with measurement microphones, '
-             'not the Radio Shack meter.'),
-            ('icons8-bass-clef-48.png', 'check', 'Bass Level Mode',
-             self.set_bass_mode,
-             'Change to display for 20-320 Hz sweep.'),
-            ('Next-icon-48.png', 'normal', 'Next',
+            # ('5210.png', 'check', 'C Weighting', self.set_c_weighting,
+            #  'Use C weighting. For use with measurement microphones, '
+            #  'not the Radio Shack meter.'),
+            # ('icons8-bass-clef-48.png', 'check', 'Bass Level Mode',
+            #  self.set_bass_mode,
+            #  'Change to display for 20-320 Hz sweep.'),
+            ('icons/Next-icon-48.png', 'normal', 'Next',
              self.next_step,
              'Move to the next calibration step.'),
         )
@@ -371,12 +371,12 @@ class MainWindow(wx.Frame):
         # self.response_text.SetToolTip(tooltip)
         # self.response_text.SetFont(font)
         # toolbar.AddControl(self.response_text)
-        dropdown = self.toolmap['Level Memory']
-        toolbar.SetDropdownMenu(dropdown.Id,
-                                self.level_menu)
-        toolbar.Bind(wx.EVT_TOOL_DROPDOWN,
-                     self.set_memory_dropdown,
-                     dropdown)
+        # dropdown = self.toolmap['Level Memory']
+        # toolbar.SetDropdownMenu(dropdown.Id,
+        #                         self.level_menu)
+        # toolbar.Bind(wx.EVT_TOOL_DROPDOWN,
+        #              self.set_memory_dropdown,
+        #              dropdown)
         toolbar.Realize()
         return toolbar
 
