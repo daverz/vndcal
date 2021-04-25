@@ -2,8 +2,13 @@
 
 A simple real time spectrum analyzer.
 
-Requirements
+Software requirements
 
 - scipy
 - wxpython
 - pyaudio
+
+Hardware requirements
+
+- miniDSP Umik-1 USB microphone
+- Vandersteen Quatro loudspeakers
