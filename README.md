@@ -12,3 +12,5 @@ Hardware requirements
 
 - miniDSP Umik-1 USB microphone
 - Vandersteen Quatro loudspeakers
+
+(I have no association with either company.)
