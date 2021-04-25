@@ -4,6 +4,7 @@ A simple real time spectrum analyzer.
 
 Software requirements
 
+- Python 3 (Anaconda open source distribution recommended.)
 - scipy
 - wxpython
 - pyaudio
