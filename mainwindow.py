@@ -11,7 +11,7 @@ import wx
 import wx.lib.plot as plot
 from scipy.signal import chirp
 
-from data_acquisition import Audio, AudioInOut, PlayRecord
+from data_acquisition import Audio
 from filterbank import OctaveFilter
 
 MIC_CALIBRATION_FILE = os.path.expanduser('~/Documents/REW/7032857.txt')
