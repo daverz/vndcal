@@ -65,3 +65,15 @@ def make_chunk_generator(data_source, channels=(0,), chunk_size=8192):
         for channel in channels:
             stereo[channel] = chunk
         yield stereo.transpose()
+
+
+def test_chunk_generator():
+    data_source = sp_sweep()
+    chunk_gen = make_chunk_generator(data_source=data_source)
+    for _ in range(5):
+        chunk = next(chunk_gen)
+        print(chunk.shape)
+
+
+if __name__ == '__main__':
+    test_chunk_generator()
