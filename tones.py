@@ -1,3 +1,5 @@
+import inspect
+
 import numpy as np
 from scipy.signal import chirp
 
@@ -42,3 +44,24 @@ def sp_sweep(rate=48000,
 #     chunk_bytes = [chunk.tobytes() for chunk in
 #                    data.reshape(-1, 2 * chunk_size)]
 #     return cycle(chunk_bytes)
+
+
+def make_chunk_generator(data_source, channels=(0,), chunk_size=8192):
+    parts = []
+    while True:
+        while sum(len(p) for p in parts) < chunk_size:
+            try:  # assume it's a generator
+                next_part = next(data_source)
+            except TypeError:  # assume it's an array
+                next_part = data_source
+            parts.append(next_part)
+        joined = np.concatenate(parts)
+        chunk = joined[:chunk_size]
+        remainder = joined[chunk_size:]
+        parts = []
+        if len(remainder):
+            parts.append(remainder)
+        stereo = np.zeros((2, chunk_size))
+        for channel in channels:
+            stereo[channel] = chunk
+        yield stereo.transpose()
