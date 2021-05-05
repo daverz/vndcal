@@ -33,17 +33,27 @@ def sp_sweep(rate=48000,
     return sweep_samples
 
 
-# def sweep_cycle(sweep_samples, channels=(0,), chunk_size=9600):
-#     """Returns a repeating cycle of stereo frames
-#     suitable for passing to pyaudio."""
-#     sweep_len = len(sweep_samples)
-#     assert sweep_len % chunk_size == 0
-#     data = np.zeros((sweep_len, 2), 'f')
-#     for ch in channels:
-#         data[:, ch] = sweep_samples
-#     chunk_bytes = [chunk.tobytes() for chunk in
-#                    data.reshape(-1, 2 * chunk_size)]
-#     return cycle(chunk_bytes)
+def warble_tone(center,
+                amplitude=0.5,  # amplitude of warble tone
+                width=1.0/3,  # octaves
+                period=0.25,  # seconds
+                phi=-90,  # sine wave
+                sample_rate=48000):
+    """Generate a warble tone"""
+    # find min and max frequencies for warble tone
+    alpha = 2 ** (0.5 * width)
+    f0, f1 = center / alpha, center * alpha
+    t1 = 0.5 * period
+    t = np.arange(t1 * sample_rate) / float(sample_rate)
+    # accumulated phase over half period
+    phase = 180 * (f0 + f1) * t1
+    offset = phi
+    while True:
+        yield amplitude * sig.chirp(t, f0, t1, f1, phi=offset)
+        # make sure we start at the next sample after where we left off
+        offset += phase
+        # reverse direction
+        f0, f1 = f1, f0
 
 
 def make_chunk_generator(data_source, channels=(0,), chunk_size=8192):
