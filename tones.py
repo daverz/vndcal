@@ -1,7 +1,5 @@
-import inspect
-
 import numpy as np
-from scipy.signal import chirp
+import scipy.signal as sig
 
 
 def sp_sweep(rate=48000,
@@ -19,9 +17,9 @@ def sp_sweep(rate=48000,
     # time steps for the sweep
     t = np.arange(sweep_len) / float(rate)
     # create sweep.  Scipy's chirp() is a cosine sweep, so we start at -90 deg.
-    sweep_samples = amplitude * chirp(t, hz_start, duration, hz_end,
-                                      method='logarithmic',
-                                      phi=-90)
+    sweep_samples = amplitude * sig.chirp(t, hz_start, duration, hz_end,
+                                          method='logarithmic',
+                                          phi=-90)
     # compute Blackman tapers
     lead_in_len = int(lead_in * sweep_len)
     lead_out_len = int(lead_out * sweep_len)
@@ -35,7 +33,7 @@ def sp_sweep(rate=48000,
 
 def warble_tone(center,
                 amplitude=0.5,  # amplitude of warble tone
-                width=1.0/3,  # octaves
+                width=1.0 / 3,  # octaves
                 period=0.25,  # seconds
                 phi=-90,  # sine wave
                 sample_rate=48000):
