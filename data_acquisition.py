@@ -20,8 +20,6 @@ class Audio:
                           output_data=(),
                           callback=None):
 
-        output_cycle = cycle(output_data.flatten())
-
         def input_callback(in_data, frame_count, time_info, status):
             if callback:
                 data = np.frombuffer(in_data, 'f')
@@ -29,8 +27,8 @@ class Audio:
             return in_data, pyaudio.paContinue
 
         def output_callback(in_data, frame_count, time_info, status):
-            data = np.fromiter(output_cycle, 'f', count=2 * frame_count)
-            return data.tobytes(), pyaudio.paContinue
+            data = next(output_data)
+            return data.astype('f').flatten().tobytes(), pyaudio.paContinue
 
         self._paudio = pyaudio.PyAudio()
 

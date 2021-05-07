@@ -12,7 +12,7 @@ import wx.lib.plot as plot
 
 from data_acquisition import Audio
 from filterbank import OctaveFilter
-from tones import sp_sweep
+import tones
 
 MIC_CALIBRATION_FILE = os.path.expanduser('~/Documents/REW/7032857.txt')
 TARGET_FRACTION = 0.30
@@ -450,7 +450,7 @@ class MainWindow(wx.Frame):
             self.frequency_names = mode_data['names']
             self.xlimits = mode_data['xlimits']
             sweep_start, sweep_end = mode_data['sweep_range']
-            self.sweep = sp_sweep(hz_start=sweep_start, hz_end=sweep_end)
+            self.sweep = tones.sp_sweep(hz_start=sweep_start, hz_end=sweep_end)
             self.octave_filter = OctaveFilter(top_center_frequency=top_freq,
                                               decimation=decimation)
             self.amplitude_corrections = self.compute_corrections(top_freq,
@@ -458,9 +458,9 @@ class MainWindow(wx.Frame):
             self.canvas.xSpec = list(zip(self.center_frequencies,
                                          self.frequency_names))
         if self.channels != last_channels:
-            self.output = np.zeros((len(self.sweep), 2), 'f')
-            for channel in self.channels:
-                self.output[:, channel] = self.sweep
+            self.output = tones.make_chunk_generator(self.sweep,
+                                                     self.channels,
+                                                     BLOCK_SIZE)
             self.audio.stop_acquisition()
             self.audio.start_acquisition(SAMPLE_RATE,
                                          BLOCK_SIZE,
