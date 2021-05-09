@@ -273,7 +273,7 @@ class MainWindow(wx.Frame):
         # points = np.zeros((len(CENTER_FREQUENCIES), 2))
         # points[:, 0] = CENTER_FREQUENCIES
         # points[:, 1] = 70
-        # self.alpha = 0.1
+        self.alpha = 0.2
         self.avg_power = 0
         self.last_level = 0
         self.last_points = ()
@@ -600,19 +600,15 @@ class MainWindow(wx.Frame):
 
     def process_audio(self, block):
         pwr = np.dot(block, block) / len(block)
-        self.fifo.append(pwr)
-        self.avg_power = np.mean(self.fifo)
-        # print(self.alpha, self.avg_power, pwr)
-        # if self.avg_power == 0:
-        #     self.avg_power = pwr
-        # else:
-        #     self.avg_power = (1 - self.alpha) * self.avg_power + self.alpha * pwr
-        # band_power = self.octave_filter(block)
-        # self.fifo.append(band_power)
-        # levels = clip_db_power(avg_power)
+        # self.fifo.append(pwr)
+        # self.avg_power = np.mean(self.fifo)
+        if self.avg_power == 0:
+            self.avg_power = pwr
+        else:
+            self.avg_power = (1 - self.alpha) * self.avg_power + self.alpha * pwr
         level = clip_db_power(self.avg_power)
         self.last_level = level
-        level += 130
+        level += 100
         # level += self.db_reference
         # levels += self.db_reference + self.amplitude_corrections
         levels = np.zeros(len(self.center_frequencies))
@@ -624,6 +620,7 @@ class MainWindow(wx.Frame):
             self.draw(levels)
 
     def on_close(self, event):
+        print("on_close")
         if self.audio:
             self.audio.stop_acquisition()
         self.config.WriteFloat('db_reference', self.db_reference)
