@@ -60,7 +60,7 @@ class Audio:
 
     def stop_acquisition(self):
         for stream in self._streams:
-            stream.start_stream()
+            stream.stop_stream()
             stream.close()
         self._streams = []
         if self._paudio:
