@@ -40,19 +40,22 @@ DB_REFERENCE = 70.0
 SAMPLE_RATE = 48000
 # SAMPLE_RATE = 44100
 # NOVERLAPS = 16
-UPDATE_RATE = 5
+UPDATE_RATE = 8
 BLOCK_SIZE = SAMPLE_RATE // UPDATE_RATE
 # BLOCK_SIZE = 32768 // 4
 # BLOCK_SIZE = 2 ** 14
 # DURATION = 2.4
 # CHIRP_LEN = DURATION * SAMPLE_RATE
 # FIFO_SIZE = int(math.ceil(DURATION * SAMPLE_RATE / float(BLOCK_SIZE))) + 10
-CENTER_FREQUENCIES = [TOP_FREQ / 2.0 ** (0.25 * i) for i in range(10, -1, -1)]
+# CENTER_FREQUENCIES = [TOP_FREQ / 2.0 ** (0.25 * i) for i in range(10, -1, -1)]
+CENTER_FREQUENCIES = (20, 24, 30, 36, 42, 50, 60, 72, 84, 100, 120)
+
 LEFT_EDGES = [f / 2.0 ** (1. / 8) for f in CENTER_FREQUENCIES]
 LEFT_EDGES.append(CENTER_FREQUENCIES[-1] * 2 ** (1. / 8))
 # CENTER_FREQUENCIES += [LEVEL_BAR_POSITION]
-CENTER_NAMES_EQ = ('20', '24', '30', '36', '42', '50',
-                   '60', '72', '84', '100', '120')
+# CENTER_NAMES_EQ = ('20', '24', '30', '36', '42', '50',
+#                    '60', '72', '84', '100', '120')
+CENTER_NAMES_EQ = ["%.0f" % f for f in CENTER_FREQUENCIES]
 CENTER_NAMES_BASS = ('42', '50', '60', '72', '84', '100', '120',
                      '140', '170', '200', '240')
 # XSPEC = list(zip(CENTER_FREQUENCIES, CENTER_NAMES))
@@ -67,6 +70,14 @@ TITLE = u'11-Band Subwoofer EQ'
 RESPONSE_FORMAT = u'Response: \N{Plus-Minus Sign}{:4.1f} \N{SQUARE DB}'
 
 mode_map = {
+    'vol_adj': {'frequencies': CENTER_FREQUENCIES[-3:],
+                'decimation': DECIMATION_EQ,
+                'edges': LEFT_EDGES,
+                'names': CENTER_NAMES_EQ,
+                'xlimits': XAXIS_LIMITS,
+                'sweep_range': (SWEEP_START, SWEEP_STOP),
+                'title': TITLE,
+                },
     'eq': {
         'frequencies': CENTER_FREQUENCIES,
         'decimation': DECIMATION_EQ,
@@ -171,6 +182,11 @@ class MyCanvas(plot.PlotCanvas):
         return [(np.log10(t), label) for (t, label) in self._xSpec]
 
 
+def clip_db_rms(samples):
+    mean_square = np.dot(samples, samples) / len(samples)
+    return np.clip(10 * np.log10(mean_square), -120.0, 0.0)
+
+
 def clip_db_power(pwr):
     return np.clip(10 * np.log10(pwr), -120.0, 0.0)
 
@@ -257,14 +273,15 @@ class MainWindow(wx.Frame):
         # points = np.zeros((len(CENTER_FREQUENCIES), 2))
         # points[:, 0] = CENTER_FREQUENCIES
         # points[:, 1] = 70
-
-        # self.avg_power = 0
+        # self.alpha = 0.1
+        self.avg_power = 0
         self.last_level = 0
         self.last_points = ()
         # self.audio = AudioInOut()
         self.audio = Audio()
 
-        fifo_size = int(SWEEP_DURATION * SAMPLE_RATE / BLOCK_SIZE)
+        # fifo_size = int(SWEEP_DURATION * SAMPLE_RATE / BLOCK_SIZE)
+        fifo_size = 8
         self.fifo = deque(maxlen=fifo_size)
         # self.power_fifo = deque(maxlen=self.fifo.maxlen)
 
@@ -274,7 +291,7 @@ class MainWindow(wx.Frame):
         wx.CallLater(100, self.next_step)
 
     def make_toolbar(self):
-        toolbar = self.CreateToolBar(wx.TB_HORIZONTAL|wx.TB_TEXT, wx.ID_ANY)
+        toolbar = self.CreateToolBar(wx.TB_HORIZONTAL | wx.TB_TEXT, wx.ID_ANY)
         tool_spec = (
             # bitmap filename, button type, label, callback, tooltip
             # ('Radio-Shack-SPL-small.png', 'normal', 'dB Ref',
@@ -450,11 +467,12 @@ class MainWindow(wx.Frame):
             self.frequency_names = mode_data['names']
             self.xlimits = mode_data['xlimits']
             sweep_start, sweep_end = mode_data['sweep_range']
-            self.sweep = tones.sp_sweep(hz_start=sweep_start, hz_end=sweep_end)
-            self.octave_filter = OctaveFilter(top_center_frequency=top_freq,
-                                              decimation=decimation)
-            self.amplitude_corrections = self.compute_corrections(top_freq,
-                                                                  decimation)
+            # self.sweep = tones.sp_sweep(hz_start=sweep_start, hz_end=sweep_end)
+            self.sweep = tones.warble_tone(self.center_frequencies[-1])
+            # self.octave_filter = OctaveFilter(top_center_frequency=top_freq,
+            #                                   decimation=decimation)
+            # self.amplitude_corrections = self.compute_corrections(top_freq,
+            #                                                       decimation)
             self.canvas.xSpec = list(zip(self.center_frequencies,
                                          self.frequency_names))
         if self.channels != last_channels:
@@ -520,22 +538,7 @@ class MainWindow(wx.Frame):
                                  fillcolour='light blue',
                                  fillstyle=wx.BRUSHSTYLE_SOLID
                                  ),
-                   # plot.PolyBars(points[-1:],
-                   #               barwidth=BARWIDTH,
-                   #               # edgecolour='blue',
-                   #               fillcolour='khaki',
-                   #               fillstyle=wx.BRUSHSTYLE_SOLID
-                   #               )
                    ]
-        # if self.uncalibrated:
-        #     uncal_points = list(zip(self.center_frequencies, self.uncalibrated))
-        #     objects.append(plot.PolyBars(uncal_points,
-        #                                  barwidth=BARWIDTH,
-        #                                  edgecolour='pink',
-        #                                  # fillcolour='forest green',
-        #                                  edgestyle=wx.PENSTYLE_SHORT_DASH,
-        #                                  fillstyle=wx.BRUSHSTYLE_TRANSPARENT
-        #                                  ))
         if self.stage != 'bass_level':
             bar_numbers = ['{}'.format(i + 1) for i in range(len(points))]
             number_points = [[x, YAXIS_LIMITS[0] + .1]
@@ -595,30 +598,29 @@ class MainWindow(wx.Frame):
     def _audio_callback(self, data):
         wx.CallAfter(self.process_audio, data)
 
-    # def add_to_average(self, new):
-    #     alpha = self.alpha
-    #     if self.avg_power is 0:
-    #             self.avg_power = new
-    #     else:
-    #         self.avg_power = self.avg_power * (1.0 - alpha) + new * alpha
-
     def process_audio(self, block):
-        band_power = self.octave_filter(block)
-        self.fifo.append(band_power)
-        avg_power = np.mean(self.fifo, axis=0)
-        levels = clip_db_power(avg_power)
-        self.last_level = clip_db_power(np.dot(block, block) / len(block))
-        levels += self.db_reference + self.amplitude_corrections
+        pwr = np.dot(block, block) / len(block)
+        self.fifo.append(pwr)
+        self.avg_power = np.mean(self.fifo)
+        # print(self.alpha, self.avg_power, pwr)
+        # if self.avg_power == 0:
+        #     self.avg_power = pwr
+        # else:
+        #     self.avg_power = (1 - self.alpha) * self.avg_power + self.alpha * pwr
+        # band_power = self.octave_filter(block)
+        # self.fifo.append(band_power)
+        # levels = clip_db_power(avg_power)
+        level = clip_db_power(self.avg_power)
+        self.last_level = level
+        level += 130
+        # level += self.db_reference
+        # levels += self.db_reference + self.amplitude_corrections
+        levels = np.zeros(len(self.center_frequencies))
+        levels[-1] = level
         points = list(zip(self.center_frequencies, levels))
         self.last_points = points
         self.levels = levels
         if not self.hold:
-            # response = np.ptp(levels[:-1]) / 2
-            # self.response_text.SetLabel(RESPONSE_FORMAT.format(response))
-            # vol_adj_index = np.argsort(levels[:-1])[VOLUME_ADJUSTMENT_ORDER]
-            # vol_adj = DB_REFERENCE - levels[vol_adj_index]
-            # self.volume_adjustment = vol_adj
-            # self.volume_adjust_text.SetLabel(VOL_ADJ_FORMAT.format(vol_adj))
             self.draw(levels)
 
     def on_close(self, event):
