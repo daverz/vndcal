@@ -54,6 +54,20 @@ def warble_tone(center,
         f0, f1 = f1, f0
 
 
+def sine_tone(frequency=1000.0,  # in Hz
+              amplitude=0.5,
+              duration=0.125,  # in seconds
+              sample_rate=48000):
+    t = np.arange(int(duration*sample_rate))/float(sample_rate)
+    phi = 0
+    omega = 2 * np.pi * frequency
+    omega_t = omega * t
+    phase_shift = omega * duration
+    while True:
+        yield amplitude * np.sin(omega_t + phi)
+        phi += phase_shift
+
+
 def make_chunk_generator(data_source, channels=(0,), chunk_size=8192):
     parts = []
     while True:
