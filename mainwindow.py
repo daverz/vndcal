@@ -1,4 +1,6 @@
 from __future__ import print_function
+
+import itertools
 import os
 import re
 import time
@@ -44,8 +46,9 @@ SAMPLE_RATE = 48000
 # NOVERLAPS = 16
 UPDATE_RATE = 8
 SAMPLE_FIFO_SIZE = 8
-LEVEL_FIFO_SIZE = 4
-MEASUREMENT_THRESHOLD_DB = 0.05
+LEVEL_FIFO_SIZE = 8
+INDEX_FIFO_SIZE = 8
+MEASUREMENT_THRESHOLD_DB = 0.1
 BLOCK_SIZE = SAMPLE_RATE // UPDATE_RATE
 # BLOCK_SIZE = 32768 // 4
 # BLOCK_SIZE = 2 ** 14
@@ -107,34 +110,55 @@ mode_map = {
 channel_text = {(0,): 'Left Speaker', (1,): 'Right Speaker',
                 (0, 1): 'Both Speakers'}
 
-cal_steps = [
-    {'mode': 'spl',
-     'channels': [0],
-     'signal': 'sine_tone',
-     'frequency': SINE_TONE_FREQUENCY},
+user_steps = [
+    {'mode': 'vol_adj',
+     'channels': [0]},
     {'mode': 'measure',
-     'channels': [0],
-     'signal': 'warble_tone',
-     'bands': BANDS[-3:]},
-    {'mode': 'measure',
-     'channels': [0],
-     'signal': 'warble_tone',
-     'bands': BANDS}
+     'channels': [0]},
+    {'mode': 'eq',
+     'channels': [0]}
 ]
 
-cal_steps += [{'mode': 'measure',
-               'channels': [0],
-               'signal': 'warble_tone',
-               'frequencies': [f]}
-              for f in CENTER_FREQUENCIES]
+eq_steps = [
+    {'mode': 'measure',
+     'channels': [0],
+     'band': i}
+    for i in BANDS
+]
+
+user_steps += eq_steps
+right_steps = user_steps[:]
+for step in right_steps:
+    step['channels'] = [1]
+user_steps += right_steps
+
+measure_steps = [{'band': i} for i in BANDS]
+
+mode_steps = {
+    'vol_adj': itertools.cycle(measure_steps[-3:]),
+    'measure': measure_steps
+}
+# {'mode': 'measure',
+#  'channels': [0],
+#  'band': 8},
+# {'mode': 'measure',
+#  'channels': [0],
+#  'bands': BANDS}
+# ]
+
+# cal_steps += [{'mode': 'measure',
+#                'channels': [0],
+#                'signal': 'warble_tone',
+#                'frequencies': [f]}
+# for f in CENTER_FREQUENCIES]
 
 # now add right channel steps
-for step in cal_steps[1:]:
-    right_step = step.copy()
-    right_step['channels'] = [1]
-    cal_steps.append(right_step)
-
-cal_step_cycle = cycle(cal_steps)
+# for step in cal_steps[1:]:
+# right_step = step.copy()
+# right_step['channels'] = [1]
+# cal_steps.append(right_step)
+#
+# cal_step_cycle = cycle(cal_steps)
 
 sens_regex = re.compile('Sens.*=(.+)dB')
 
@@ -201,16 +225,17 @@ def clip_db_power(pwr):
     return np.clip(10 * np.log10(pwr), -120.0, 0.0)
 
 
-def find_center_frequency(x, samplerate=48000,
-                          low_cutoff=17,
-                          high_cutoff=135):
+def find_center_frequency(x,
+                          samplerate=48000,
+                          band_frequencies=CENTER_FREQUENCIES):
     bin_width = samplerate / len(x)
-    min_bin = int(low_cutoff / bin_width)
-    max_bin = int(high_cutoff / bin_width)
+    alpha = 2 ** (1. / 6)
+    min_bin = int(band_frequencies[0] / alpha / bin_width)
+    max_bin = int(np.ceil(band_frequencies[-1] * alpha / bin_width))
     ft = np.fft.rfft(x)
     power = ft.real ** 2 + ft.imag ** 2
     # cut off the spectrum to avoid noise skewing result
-    power = power[min_bin:max_bin+1]
+    power = power[min_bin:max_bin + 1]
     # frequencies = np.arange(min_bin, max_bin+1) * bin_width
     # compute centroid of power spectrum
     # centroid = np.sum(frequencies * power) / np.sum(power)
@@ -218,7 +243,7 @@ def find_center_frequency(x, samplerate=48000,
     center = peak * bin_width
     # find the closest of our EQ frequencies
     # distances = abs(np.array(CENTER_FREQUENCIES) - centroid)
-    distances = abs(np.array(CENTER_FREQUENCIES) - center)
+    distances = abs(np.array(band_frequencies) - center)
     index = np.argmin(distances)
     # if distances[index] < 2:
     return index, center
@@ -321,6 +346,8 @@ class MainWindow(wx.Frame):
 
         # fifo_size = int(SWEEP_DURATION * SAMPLE_RATE / BLOCK_SIZE)
         self.sample_fifo = deque(maxlen=SAMPLE_FIFO_SIZE)
+        self.level_fifo = deque(maxlen=LEVEL_FIFO_SIZE)
+        self.index_fifo = deque(maxlen=INDEX_FIFO_SIZE)
         # self.bin_width = SAMPLE_RATE / (SAMPLE_FIFO_SIZE * BLOCK_SIZE)
         # self.power_fifo = deque(maxlen=self.sample_fifo.maxlen)
 
@@ -396,7 +423,8 @@ class MainWindow(wx.Frame):
 
     def set_db_reference(self, event):
         self.db_reference = 70 - self.last_level
-        print('SETTING... set_db_reference:', self.db_reference, self.last_level)
+        print('SETTING... set_db_reference:', self.db_reference,
+              self.last_level)
         self.config.WriteFloat('db_reference', self.db_reference)
         self.config.Flush()
         print('Read back:', self.config.ReadFloat('db_reference'))
@@ -655,26 +683,32 @@ class MainWindow(wx.Frame):
         samples = np.concatenate(self.sample_fifo)
         # mean-square
         power = np.dot(samples, samples) / len(samples)
+        level = clip_db_power(power)
         # if self.avg_power_spectrum is None:
         #     self.avg_power_spectrum = pwr_spectrum
         # else:
         #     self.avg_power_spectrum += self.alpha * (pwr_spectrum
         #                                              - self.avg_power_spectrum)
         index, center = find_center_frequency(samples)
-        level = clip_db_power(power)
-        level_diff = abs(level - self.last_level)
-        if (self.last_level_diff < MEASUREMENT_THRESHOLD_DB
-                and level_diff < MEASUREMENT_THRESHOLD_DB):
+        self.index_fifo.append(index)
+        self.level_fifo.append(level)
+        # level_diff = abs(level - self.last_level)
+        # if (self.last_level_diff < MEASUREMENT_THRESHOLD_DB
+        #         and level_diff < MEASUREMENT_THRESHOLD_DB):
+        level_std = np.std(self.level_fifo)
+        # do we have a stable band index for the peak frequency
+        index = self.index_fifo[-1] if len(set(self.index_fifo)) < 2 else -1
+        if level_std < MEASUREMENT_THRESHOLD_DB and index > -1:
             self.measurement_ready = True
         else:
             self.measurement_ready = False
-        print('freq: %.1f, level: %.1f, level diffs: last=%.2f, this=%.2f'
-              % (center, level, self.last_level_diff, level_diff))
-        self.last_level_diff = level_diff
+        print('freq: %.1f, index: %d, level: %.1f, std: %.2f'
+              % (center, index, level, level_std))
+        # self.last_level_diff = level_diff
         print('process db_reference:', self.db_reference)
-        self.last_level = level
+        # self.last_level = level
+        # avg_level = self.db_reference + np.mean(self.level_fifo)
         level += self.db_reference
-        # level += self.db_reference
         # levels += self.db_reference + self.amplitude_corrections
         levels = np.zeros(len(CENTER_FREQUENCIES))
         if index > -1:
