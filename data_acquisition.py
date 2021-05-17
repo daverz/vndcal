@@ -46,15 +46,16 @@ class Audio:
                                          stream_callback=input_callback,
                                          frames_per_buffer=buffer_size)
 
-        output_stream = self._paudio.open(format=pyaudio.paFloat32,
-                                          channels=2,
-                                          rate=sample_rate,
-                                          output=True,
-                                          stream_callback=output_callback,
-                                          frames_per_buffer=buffer_size)
-        print('output latency:', output_stream.get_output_latency())
-        print('input latency:', input_stream.get_input_latency())
-        self._streams = [output_stream, input_stream]
+        # output_stream = self._paudio.open(format=pyaudio.paFloat32,
+        #                                   channels=2,
+        #                                   rate=sample_rate,
+        #                                   output=True,
+        #                                   stream_callback=output_callback,
+        #                                   frames_per_buffer=buffer_size)
+        # print('output latency:', output_stream.get_output_latency())
+        # print('input latency:', input_stream.get_input_latency())
+        # self._streams = [output_stream, input_stream]
+        self._streams = [input_stream]
         for stream in self._streams:
             stream.start_stream()
 
