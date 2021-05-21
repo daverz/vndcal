@@ -110,34 +110,81 @@ mode_map = {
 channel_text = {(0,): 'Left Speaker', (1,): 'Right Speaker',
                 (0, 1): 'Both Speakers'}
 
+steps = []
+for channels in [(0,), (1,)]:
+    channel_name = channel_text[channels]
+    for band in BANDS[-3:]:
+        step_data = {'mode': 'volume',
+                     'title': f'Volume Measurement, {channel_name}',
+                     'text': f'Play Track {band}',
+                     'change_on': 'measurement',
+                     'band': band,
+                     'channels': channels}
+        steps.append(step_data)
+    vol_adj = {'mode': 'volume adjustment',
+               'title': f'Volume Adjustment, {channel_name}',
+               'text': 'Adjust Volume By {} dB',
+               'change_on': 'band',
+               'band': BANDS[-1:],
+               'channels': channels}
+    steps.append(vol_adj)
+    for band in BANDS:
+        step_data = {'mode': 'measure',
+                     'title': f'11-band Measurement, {channel_name}',
+                     'text': f'Play Track {band}',
+                     'change_on': 'measurement',
+                     'band': band,
+                     'channels': channels},
+        steps.append(step_data)
+    for band in BANDS:
+        step_data = {'mode': 'eq',
+                     'title': f'11-band EQ, {channel_name}',
+                     'text': f'EQ Band {band}',
+                     'change_on': 'band',
+                     'band': band,
+                     'channels': channels}
+        steps.append(step_data)
+
 user_steps = [
-    {'mode': 'vol_adj',
+    {'mode': 'volume',
+     'title': 'Volume Measurement, {}',
+     'text': 'Play Track {}',
+     'bands': BANDS[-3:],
+     'channels': [0]},
+    {'mode': 'volume adjustment',
+     'title': 'Volume Adjustment, {}',
+     'text': 'Adjust Volume {} dB',
+     'bands': BANDS[-1:],
      'channels': [0]},
     {'mode': 'measure',
+     'title': '11-band Measurement, {}',
+     'text': 'Play Track {}',
+     'bands': BANDS,
      'channels': [0]},
     {'mode': 'eq',
+     'title': '11-band EQ, {}',
+     'text': 'EQ Band {}',
+     'bands': BANDS,
      'channels': [0]}
 ]
 
-eq_steps = [
-    {'mode': 'measure',
-     'channels': [0],
-     'band': i}
-    for i in BANDS
-]
+# eq_steps = [
+#     {'mode': 'measure',
+#      'channels': [0],
+#      'band': i}
+#     for i in BANDS
+# ]
 
-user_steps += eq_steps
+# user_steps += eq_steps
 right_steps = user_steps[:]
 for step in right_steps:
     step['channels'] = [1]
 user_steps += right_steps
 
-measure_steps = [{'band': i} for i in BANDS]
-
-mode_steps = {
-    'vol_adj': itertools.cycle(measure_steps[-3:]),
-    'measure': measure_steps
-}
+# mode_steps = {
+#     'volume': itertools.cycle(measure_steps[-3:]),
+#     'measure': measure_steps
+# }
 # {'mode': 'measure',
 #  'channels': [0],
 #  'band': 8},
@@ -339,6 +386,7 @@ class MainWindow(wx.Frame):
         self.avg_power_spectrum = None
         self.last_level = 0
         self.last_level_diff = 1e6
+        self.last_measurement = -1, 0.0
         self.measurement_ready = False
         self.last_points = ()
         # self.audio = AudioInOut()
@@ -690,16 +738,22 @@ class MainWindow(wx.Frame):
         #     self.avg_power_spectrum += self.alpha * (pwr_spectrum
         #                                              - self.avg_power_spectrum)
         index, center = find_center_frequency(samples)
+        old_index = self.index_fifo[-1] if self.index_fifo else -1
         self.index_fifo.append(index)
         self.level_fifo.append(level)
+        level_std = np.std(self.level_fifo)
+        level += self.db_reference
         # level_diff = abs(level - self.last_level)
         # if (self.last_level_diff < MEASUREMENT_THRESHOLD_DB
         #         and level_diff < MEASUREMENT_THRESHOLD_DB):
-        level_std = np.std(self.level_fifo)
         # do we have a stable band index for the peak frequency
-        index = self.index_fifo[-1] if len(set(self.index_fifo)) < 2 else -1
+        last_index = self.index_fifo[-1]
+        is_stable = self.index_fifo.count(last_index) == self.index_fifo.maxlen
+        index = last_index if is_stable else -1
         if level_std < MEASUREMENT_THRESHOLD_DB and index > -1:
             self.measurement_ready = True
+            self.last_measurement = index, level
+            self.on_measurement_ready()
         else:
             self.measurement_ready = False
         print('freq: %.1f, index: %d, level: %.1f, std: %.2f'
@@ -708,7 +762,6 @@ class MainWindow(wx.Frame):
         print('process db_reference:', self.db_reference)
         # self.last_level = level
         # avg_level = self.db_reference + np.mean(self.level_fifo)
-        level += self.db_reference
         # levels += self.db_reference + self.amplitude_corrections
         levels = np.zeros(len(CENTER_FREQUENCIES))
         if index > -1:
@@ -734,6 +787,9 @@ class MainWindow(wx.Frame):
             sensitivity = float(match.group(1))
             mic_response = np.loadtxt(infile)
         return sensitivity, mic_response
+
+    def on_measurement_ready(self):
+        pass
 
 
 if __name__ == '__main__':
