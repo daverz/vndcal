@@ -1,15 +1,18 @@
 import os
 import time
 import threading
+from glob import glob
 
 import numpy as np
 from scipy.io import wavfile
 from scipy.signal import resample_poly
 
-WAVFILE = os.path.expanduser('~/Music/vandertones/04 - Track04.mp3.wav')
+VANDERTONE_DIR = os.path.expanduser('~/Music/vandertones')
+DURATION = 3.0
+BAND_ORDER = [9, 10, 11, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+              1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 
-
-class MockAudio(threading.Thread):
+class MockAudio:
 
     def __init__(self):
         self.sample_rate = None
@@ -18,6 +21,7 @@ class MockAudio(threading.Thread):
         self.samples = None
         self.stop = False
         self.offset = 0
+        self.thread = None
         super().__init__()
 
     def start_acquisition(self,
@@ -27,16 +31,22 @@ class MockAudio(threading.Thread):
         self.sample_rate = sample_rate
         self.buffer_size = buffer_size
         self.callback = callback
-        rate, samples = wavfile.read(WAVFILE)
-        print(rate, sample_rate, samples.shape, samples[:10])
-        samples = samples[:, 0] / 32768.0
-        if rate != sample_rate:
-            samples = resample_poly(samples, up=sample_rate, down=rate)
-        print(samples.shape, samples.dtype)
-        self.samples = samples
-        self.start()
+        all_samples = []
+        for band in BAND_ORDER:
+            wav = glob(os.path.join(VANDERTONE_DIR, f'{band:02d}*.wav'))
+            if not wav:
+                raise ValueError(f'No wav file found for band {band}')
+            rate, samples = wavfile.read(wav[0])
+            samples = samples[:, 0] / 32768.0
+            if rate != sample_rate:
+                samples = resample_poly(samples, up=sample_rate, down=rate)
+            n = int(sample_rate * DURATION)
+            all_samples.append(samples[:n])
+        self.samples = np.concatenate(all_samples)
+        self.thread = threading.Thread(target=self.acquire)
+        self.thread.start()
 
-    def run(self):
+    def acquire(self):
         while not self.stop:
             time.sleep(self.buffer_size/self.sample_rate)
             chunk = self.samples[self.offset:self.offset+self.buffer_size]
@@ -49,4 +59,7 @@ class MockAudio(threading.Thread):
 
     def stop_acquisition(self):
         self.stop = True
-        self.join()
+        if self.thread:
+            self.thread.join()
+        self.stop = False
+        self.thread = None
