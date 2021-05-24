@@ -572,43 +572,11 @@ class MainWindow(wx.Frame):
         self.hold = False
 
     def next_step(self, event=None):
-        # last_mode = self.step_data.get('mode')
-        # last_stage = self.step_data.get('stage')
-        # last_channels = self.step_data.get('channels')
-        # self.step_data = next(cal_step_cycle)
-        # self.stage = self.step_data['stage']
-        # mode = self.step_data['mode']
-        # mode_data = mode_map[mode]
-        # self.channels = self.step_data['channels']
-        # if self.stage == 'target':
-        #     self.set_target_mode(True)
-        # if last_stage == 'target':
-        #     self.set_target_mode(False)
-        # if mode != last_mode:
-        #     center_frequencies = mode_data['frequencies']
-        #     top_freq = center_frequencies[-1]
-        #     decimation = mode_data['decimation']
-        #     self.center_frequencies = mode_data['frequencies']
-        #     self.left_edges = mode_data['edges']
-        #     self.frequency_names = mode_data['names']
-        #     self.xlimits = mode_data['xlimits']
-        #     sweep_start, sweep_end = mode_data['sweep_range']
-        #     # self.sweep = tones.sp_sweep(hz_start=sweep_start, hz_end=sweep_end)
-        self.sweep = tones.warble_tone(CENTER_FREQUENCIES[-1])
-        #     # self.octave_filter = OctaveFilter(top_center_frequency=top_freq,
-        #     #                                   decimation=decimation)
-        #     # self.amplitude_corrections = self.compute_corrections(top_freq,
-        #     #                                                       decimation)
         self.canvas.xSpec = list(zip(CENTER_FREQUENCIES,
                                      CENTER_NAMES_EQ))
-        # if self.channels != last_channels:
-        self.output = tones.make_chunk_generator(self.sweep,
-                                                 self.channels,
-                                                 BLOCK_SIZE)
         # self.audio.stop_acquisition()
         self.audio.start_acquisition(SAMPLE_RATE,
                                      BLOCK_SIZE,
-                                     # self.output,
                                      self._audio_callback)
 
     def set_c_weighting(self, event=None):
