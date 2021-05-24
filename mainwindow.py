@@ -15,6 +15,9 @@ import wx.lib.plot as plot
 from data_acquisition import Audio
 from filterbank import OctaveFilter
 import tones
+from mock_audio import MockAudio
+
+DEBUG = True
 
 SINE_TONE_FREQUENCY = 1000.0
 
@@ -390,7 +393,10 @@ class MainWindow(wx.Frame):
         self.measurement_ready = False
         self.last_points = ()
         # self.audio = AudioInOut()
-        self.audio = Audio()
+        if DEBUG:
+            self.audio = MockAudio()
+        else:
+            self.audio = Audio()
 
         # fifo_size = int(SWEEP_DURATION * SAMPLE_RATE / BLOCK_SIZE)
         self.sample_fifo = deque(maxlen=SAMPLE_FIFO_SIZE)
@@ -599,10 +605,10 @@ class MainWindow(wx.Frame):
         self.output = tones.make_chunk_generator(self.sweep,
                                                  self.channels,
                                                  BLOCK_SIZE)
-        self.audio.stop_acquisition()
+        # self.audio.stop_acquisition()
         self.audio.start_acquisition(SAMPLE_RATE,
                                      BLOCK_SIZE,
-                                     self.output,
+                                     # self.output,
                                      self._audio_callback)
 
     def set_c_weighting(self, event=None):
@@ -732,6 +738,7 @@ class MainWindow(wx.Frame):
         # mean-square
         power = np.dot(samples, samples) / len(samples)
         level = clip_db_power(power)
+        self.last_level = level
         # if self.avg_power_spectrum is None:
         #     self.avg_power_spectrum = pwr_spectrum
         # else:
